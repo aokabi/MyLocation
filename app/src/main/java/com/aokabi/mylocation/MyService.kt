@@ -4,14 +4,13 @@ import android.Manifest
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.Intent.getIntent
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
-import android.os.Looper
+import android.os.*
 import android.provider.Settings
 import android.support.v4.app.ActivityCompat
 import android.util.Log
@@ -26,6 +25,7 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import java.util.NoSuchElementException
 
 class MyService : Service(), LocationListener {
 
@@ -36,12 +36,9 @@ class MyService : Service(), LocationListener {
     private var clubroom = false
 
     private var mTimer: Timer? = null
-    internal var mHandler = Handler()
+    private var _messenger: Messenger? = null
 
-    val workspace_la: Double = getString(R.string.workspace_la).toDouble()
-    val workspace_lo = getString(R.string.workspace_lo).toDouble()
-    val clubroom_la = getString(R.string.clubroom_la).toDouble()
-    val clubroom_lo = getString(R.string.clubroom_lo).toDouble()
+
 
     override fun onCreate() {
         super.onCreate()
@@ -71,19 +68,11 @@ class MyService : Service(), LocationListener {
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         Log.i("TestService,", "onStartCommand")
+        val mm: MyMessenger = intent.getParcelableExtra<MyMessenger>("handle")
+        _messenger = mm?.messenger
         locationStart()
 
-        /*mTimer = new Timer(true);
-        mTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                mHandler.post(new Runnable() {
-                    public void run() {
-                        Log.d("TestService", "Timer run");
-                    }
-                });
-            }
-        }, 1000, 1000);*/
+        Toast.makeText(this, "Myservice onStart", Toast.LENGTH_SHORT).show()
         return super.onStartCommand(intent, flags, startId)
     }
 
@@ -102,6 +91,8 @@ class MyService : Service(), LocationListener {
 
     override fun onBind(intent: Intent): IBinder? {
         Log.i("TestService", "onBind")
+        locationStart()
+        //return _messenger.binder
         throw UnsupportedOperationException("Not yet implemented")
     }
 
@@ -112,8 +103,10 @@ class MyService : Service(), LocationListener {
     override fun onProviderDisabled(provider: String) {}
 
     override fun onLocationChanged(location: Location) {
-
-
+        val workspace_la = getString(R.string.workspace_la).toDouble()
+        val workspace_lo = getString(R.string.workspace_lo).toDouble()
+        val clubroom_la = getString(R.string.clubroom_la).toDouble()
+        val clubroom_lo = getString(R.string.clubroom_lo).toDouble()
         // 緯度
         //TextView latitudeView = (TextView) findViewById(R.id.latitude);
         //latitudeView.setText("Latitude:" + location.getLatitude());
@@ -123,6 +116,9 @@ class MyService : Service(), LocationListener {
         //TextView longitudeView = (TextView) findViewById(R.id.longitude);
         //longitudeView.setText("Longitude:" + location.getLongitude());
         Log.d("debug", "Longitude:" + location.longitude)
+
+        sendActivity(location)
+
         if (workspace_la - 0.004 < location.latitude && location.latitude < workspace_la + 0.004 && workspace_lo - 0.004 < location.longitude && location.longitude < workspace_lo + 0.004) {
             if (!attendance) {
                 attendance = true
@@ -178,4 +174,14 @@ class MyService : Service(), LocationListener {
         OkHttpClient().newCall(slackRequest).enqueue(callback)
     }
 
+    fun sendActivity(location: Location) {
+        try {
+            _messenger?.send(Message.obtain(null, 0, location))
+            Log.d("send", "sendできた")
+        } catch (e: RemoteException) {
+            e.printStackTrace()
+        } catch (e: NoSuchElementException) {
+            e.printStackTrace()
+        }
+    }
 }

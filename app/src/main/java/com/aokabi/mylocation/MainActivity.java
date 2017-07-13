@@ -1,5 +1,6 @@
 package com.aokabi.mylocation;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -9,6 +10,8 @@ import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
+import android.os.Messenger;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
@@ -37,18 +40,31 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
 
     private final int REQUEST_PERMISSION = 1000;
     private LocationManager locationManager; //位置情報を管理している
-
+    private Handler mhandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        final TextView latitude = (TextView) findViewById(R.id.latitude);
+        final TextView longitude = (TextView) findViewById(R.id.longitude);
 
+        mhandler = new Handler() {
+            @Override
+            public void handleMessage(Message msg) {
+                Log.d("receive", "success");
+                Location location = (Location) msg.obj;
+                latitude.setText(String.valueOf(location.getLatitude()));
+                longitude.setText(String.valueOf(location.getLongitude()));
+                super.handleMessage(msg);
+            }
+        };
         Button buttonStart = (Button) findViewById(R.id.start_button);
         buttonStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(getApplication(),MyService.class);
+                intent.putExtra("handle", new MyMessenger(new Messenger(mhandler)));
                 startService(intent);
             }
         });
@@ -67,6 +83,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
                 new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
+                        Log.d("maapp", getString(R.string.mychannel));
                         //sendRequest();
                     }
                 }
